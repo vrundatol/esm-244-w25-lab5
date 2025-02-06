@@ -1,0 +1,11 @@
+---
+title: "Week 5 Post Lab:"
+author: "Nathaniel Grimes"
+format: html
+---
+
+## Instructions
+
+Load in the seeds data used in lab. Use the same transformations we used to load and clean the data. Your task is to use hierarchical clustering to cluster the seeds data instead of kmeans. 
+
+Use `hclust` with both single and complete linkage to define the clusters. How different are they to the clusters found by kmeans? Make a finalize visualization (graph and/or table) that shows the comparison with a brief description of why the results may differ.

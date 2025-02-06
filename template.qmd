@@ -1,0 +1,360 @@
+---
+title: 'ESM 244 Lab 5 Key: Clustering'
+execute:
+  eval: false
+---
+
+
+In this lab, you'll learn how to do some cluster exploration by partition-based (k-means) and hierarchical clustering.
+
+## Get & attach required packages
+
+Note: You'll probably need to install the last 5 packages here for clustering. 
+
+```{r}
+library(tidyverse)
+library(patchwork)
+
+# Packages for cluster analysis:
+library(NbClust)
+library(cluster)
+library(factoextra)
+library(dendextend)
+library(ggdendro)
+```
+
+
+# Part 1. K-means clustering: 
+
+To practice k-means clustering, we'll use the [wheat seeds dataset](https://archive.ics.uci.edu/dataset/236/seeds) from UC Irvine's Machine Learning Repository.  This was featured in:
+
+* M. Charytanowicz, J. Niewczas, P. Kulczycki, Piotr A. Kowalski, Szymon Łukasik, Slawomir Zak. 2010 [Complete Gradient Clustering Algorithm for Features Analysis of X-Ray Images](https://www.semanticscholar.org/paper/Complete-Gradient-Clustering-Algorithm-for-Features-Charytanowicz-Niewczas/24a9453d3cab64995e32506f884c2a1792a6d4ca).  Information Technologies in Biomedicine.
+
+From the repository:
+
+> Measurements of geometrical properties of kernels belonging to three different varieties of wheat. A soft X-ray technique and GRAINS package were used to construct all seven, real-valued attributes.
+>
+> The examined group comprised kernels belonging to three different varieties of wheat: Kama, Rosa and Canadian, 70 elements each, randomly selected for the experiment. High quality visualization of the internal kernel structure was detected using a soft X-ray technique. It is non-destructive and considerably cheaper than other more sophisticated imaging techniques like scanning microscopy or laser technology. The images were recorded on 13x18 cm X-ray KODAK plates. Studies were conducted using combine harvested wheat grain originating from experimental fields, explored at the Institute of Agrophysics of the Polish Academy of Sciences in Lublin.
+> 
+> The data set can be used for the tasks of classification and cluster analysis.
+
+Variables:
+
+1. area A, 
+2. perimeter P, 
+3. compactness C = 4*pi*A/P^2, 
+4. length of kernel,
+5. width of kernel,
+6. asymmetry coefficient
+7. length of kernel groove.
+8. variety: Kama=1, Rosa=2, Canadian=3
+
+All of these parameters were real-valued continuous.
+
+
+## Read in and clean the data
+
+This data is in a different format than we are used to.  It is a text file, rather than csv; the columns are separated by tabs, not commas. R can handle this no problem with a new function to load in the data.
+
+```{r}
+seeds_df <- read_tsv(here::here('data','seeds_dataset.txt'))
+
+```
+
+Uh-oh, the column names look strange. Why are there no column names?  We can tell R that there are no column names in the `read_tsv()`, but we'll need to manually add them in based on our reading of the metadata. Let's start by making a vector for the names. Notice the order of the vector matters in the placement of the column names. First index goes to first column.
+
+```{r}
+var_names<-c('a', 'p', 'c', 'l_k', 'w_k', 'asym', 'l_g', 'variety')
+temp<-read_tsv(here::here('data','seeds_dataset.txt'),
+                     col_names = FALSE) |> 
+  setNames(var_names)
+```
+
+
+In your console use `summary(temp)` to examine the structure of the data. Does anything look strange?
+
+
+
+
+
+Hopefully you caught two pieces that need to be fixed. First, why are there so many -999 minimum values? That is an oddly specific number. Those are how `NAs` were defined in the data. We need to let R know that those numbers are actually not numbers at all. Second, variety is really a factor, not a number so let's change it to the names of the species.
+
+```{r}
+seeds_df <- read_tsv(here::here('data','seeds_dataset.txt'),
+                     col_names = FALSE,
+                     na = '-999') %>%
+  setNames(var_names) %>%
+  mutate(variety = case_when(variety == 1 ~ 'Kama',
+                             variety == 2 ~ 'Rosa',
+                             variety == 3 ~ 'Canadian',
+                             TRUE ~ 'oops'))
+```
+
+
+
+## Exploratory visualization
+
+I want you to create three exploratory visuals to help you understand the data and start looking for potential clusters. Make the graphs in any order you feel comfortable.
+
+1) Make a histogram of the distribution of each numeric variable (hint: pivot the data longer first and use facet_grid as a layer in your ggplot)
+
+2) A scatter plot of with kernel area on the x-axis and asymmetry coefficient on the y-axis. Use color, shape, or any other aesthetic to  help you see potential groupings
+
+3) A scatter plot with length of kernel groove on the x-axis and width of kernel on y-axis.
+
+You can always make more if you want. 
+
+
+
+
+
+
+
+
+
+## Create a complete, scaled version of the data
+
+Make two separate dataframes where one is the complete cases dataframe and the other is the scaled complete cases. Check out the `scale()` function.
+
+Why would we want two separate dataframes instead of doing it one pipe? Why should we scale the data before going to kmeans-clustering?
+
+
+
+
+## Identifying optimal number of clusters
+
+First let's make a 'knee' plot to see the performance of kmeans with different number of clusters. Describe what each of the arguments do in the following code chunk. Interpret the results of the graph by making a figure caption in the code chunk.
+
+```{r}
+
+fviz_nbclust(seeds_scale, FUNcluster = kmeans, method = 'wss', k.max = 10)
+
+```
+
+
+
+
+Now let's have R recommend the number of clusters.
+
+```{r}
+
+number_est <- NbClust(seeds_scale, min.nc = 2, max.nc = 10, method = "kmeans")
+
+
+number_est
+
+
+```
+
+
+
+
+
+## Run k-means 
+
+The `nbclust` package runs k-means under the hood, but doesn't provide a usuable dataframe to manipulate objects. Run kmeans in the following code chunk with the `kmeans()` function. What arguments should you include?
+
+```{r}
+
+set.seed(10101)
+seeds_km <- kmeans(xxx,yyy,zzz) # kmeans specifying 3 groups to start
+```
+
+
+Examine the output of the kmeans object. Which column contains the classfiication? Join the cluster labels to the ***non***-scaled data.
+
+
+
+Now make a ggplot of of area on the x-axis, asymmetric coefficient on the y-axis, color by the cluster numbers from kmeans, and use shape for the variety column.
+
+``` {r}
+### On your own:
+### Plot area and asymmetric index, and include cluster number and variety for comparison:
+
+
+
+```
+
+What do we see from this graph? 
+
+
+Can you make a table to show the comparison between the variety and defined clusters?
+
+
+
+# Part 2. Cluster analysis: hierarchical
+
+In this section, we'll be performing hierarchical cluster analysis (& making dendrograms) in R. From lecture you should understand agglomerative versus divisive clustering, as well as differences in linkages (complete, single, average). 
+
+We will use the `stats::hclust()` function for agglomerative hierarchical clustering, first checking how well our clusters compare to using WorldBank environmental data (simplified), wb_env.csv.
+
+
+
+## World Bank data: Read in the data, & simplify
+
+Here, we'll read in the WorldBank environmental data (simplified), and keep only the top 20 GHG emitters for this dataset. Examine the dataframe.
+
+```{r}
+
+# Get the data
+wb_env <- read_csv(here::here("data","wb_env.csv"))
+
+```
+
+
+
+Write pseducode for what we will need to do for heirarchal clustering
+
+
+
+
+## Wrangle the data
+
+```{r}
+#| eval: false
+
+# Only keep top 20 greenhouse gas emitters (for simplifying visualization here...)
+wb_ghg_20 <- wb_env %>% 
+  
+
+```
+
+## Scale the data
+
+```{r}
+# Scale the numeric variables (columns 3:7)
+wb_scaled <- wb_ghg_20 %>% 
+
+
+rownames(wb_scaled) <- wb_ghg_20$name
+
+```
+
+
+## Find the Euclidean distances
+
+Use the `stats::dist()` function to find the Euclidean distance in multivariate space between the different observations (countries):
+
+```{r}
+
+```
+
+
+## Perform hierarchical clustering by complete linkage
+
+The `stats::hclust()` function performs hierarchical clustering, given a dissimilarity matrix (our matrix of euclidean distances), using a linkage that you specify. 
+
+Here, let's use complete linkage (recall from lecture: clusters are merged by the smallest *maximum* distance between two observations in distinct clusters).
+
+
+```{r}
+
+# Hierarchical clustering (complete linkage)
+hc_complete <- hclust(euc_distance, method = "complete" )
+
+# Plot it
+p_complete<-ggdendrogram(hc_complete, 
+             rotate = TRUE) +
+  theme_minimal() +
+  labs(x = "Country")
+
+```
+
+## Now let's do it by single linkage & compare
+
+Let's update the linkage to single linkage (recall from lecture: this means that clusters are merged by the *smallest* distance between observations in separate clusters):
+
+```{r}
+
+# Make single cluster here and plot it
+
+```
+
+
+
+Use patchwork to compare the two outputs and add a descriptive figure caption to the joined plot.
+
+```{r}
+
+```
+
+
+
+
+
+# Extras:
+
+### Pruning the dendrogram
+
+We can cluster the groupings by pruning the dendrogram using the `cutree` function. Feel free to choose any groupings
+
+```{r}
+# Prune the dendrogram to show only the top 5 clusters
+hc_cut <- cutree(hc_complete, k = 5)
+
+# Add cluster number to the data
+
+wb_ghg_20 <- wb_ghg_20 %>% 
+  mutate(cluster = hc_cut)
+
+ggplot(wb_ghg_20, aes(x = reorder(name, cluster), y = ghg, fill = factor(cluster))) +
+  geom_col() +
+  coord_flip() +
+  theme_minimal() +
+  labs(x = "Country", y = "GHG emissions (kt CO2e)", fill = "Cluster")
+```
+
+There are currently more features in base R to handle dendrograms than ggplot2. If you want to explore more, check out the `dendextend` package. [Also check out this link](https://www.sthda.com/english/wiki/beautiful-dendrogram-visualizations-in-r-5-must-known-methods-unsupervised-machine-learning)
+
+Here's an example of how you could color the groups we found.
+
+```{r}
+# Color the branches by cluster
+dend_complete <- as.dendrogram(hc_complete)
+
+dend_complete %>% 
+  set("branches_k_color", k = 5) %>% 
+  plot(main = "Complete linkage clustering")
+```
+
+
+
+### Make a tanglegram to compare dendrograms 
+
+Let's make a **tanglegram** to compare clustering by complete and single linkage! We'll use the `dendextend::tanglegram()` function to make it. 
+
+First, we'll convert to class `dendrogram`, then combine them into a list:
+
+```{r}
+# Convert to class dendrogram
+dend_complete <- as.dendrogram(hc_complete)
+dend_simple <- as.dendrogram(hc_single)
+```
+
+Cool, now make a tanglegram: 
+
+```{r}
+# Make a tanglegram
+tanglegram(dend_complete, dend_simple)
+```
+
+That allows us to compare how things are clustered by the different linkages!
+
+Untangling:
+
+```{r}
+entanglement(dend_complete, dend_simple) # lower is better
+#> [1] 0.3959222
+
+untangle(dend_complete, dend_simple, method = "step1side") %>% 
+  entanglement()
+# [1] 0.06415907
+```
+
+Notice that just because we can get two trees to have horizontal connecting lines, it doesn’t mean these trees are identical (or even very similar topologically):
+
+``` {r}
+untangle(dend_complete, dend_simple, method = "step1side") %>% 
+   tanglegram(common_subtrees_color_branches = TRUE)
+```
+
