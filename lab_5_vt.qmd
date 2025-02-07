@@ -1,7 +1,18 @@
 ---
 title: 'ESM 244 Lab 5 Key: Clustering'
+author:
+    - Nathaniel Grimes
+    - Yutian Fang
+    - Vrunda Tol
+format:
+  html:
+    code-fold: show
+    embed-resources: true
+    toc: true
 execute:
-  eval: false
+  eval: true
+  warning: false
+  message: false
 ---
 
 
@@ -57,7 +68,8 @@ All of these parameters were real-valued continuous.
 This data is in a different format than we are used to.  It is a text file, rather than csv; the columns are separated by tabs, not commas. R can handle this no problem with a new function to load in the data.
 
 ```{r}
-seeds_df <- read_tsv(here::here('data','seeds_dataset.txt'))
+seeds_df <- read_tsv(here::here('data','seeds_dataset.txt')) # notice lazy load for the here package)
+
 
 ```
 
@@ -73,7 +85,8 @@ temp<-read_tsv(here::here('data','seeds_dataset.txt'),
 
 In your console use `summary(temp)` to examine the structure of the data. Does anything look strange?
 
-
+1) Negative NA values take the value of -999.00.
+2) R thinks the variety is a number and not a factor. 
 
 
 
@@ -82,12 +95,12 @@ Hopefully you caught two pieces that need to be fixed. First, why are there so m
 ```{r}
 seeds_df <- read_tsv(here::here('data','seeds_dataset.txt'),
                      col_names = FALSE,
-                     na = '-999') %>%
+                     na = '-999') %>% #first, R will consider 999 as character as it is reading text
   setNames(var_names) %>%
   mutate(variety = case_when(variety == 1 ~ 'Kama',
                              variety == 2 ~ 'Rosa',
                              variety == 3 ~ 'Canadian',
-                             TRUE ~ 'oops'))
+                             TRUE ~ 'oops')) # if none of the values match
 ```
 
 
@@ -98,27 +111,78 @@ I want you to create three exploratory visuals to help you understand the data a
 
 1) Make a histogram of the distribution of each numeric variable (hint: pivot the data longer first and use facet_grid as a layer in your ggplot)
 
+```{r}
+
+seeds_df_long <- seeds_df |>
+  pivot_longer(names_to = "name", values_to = "value", where(is.numeric))
+
+ggplot(seeds_df_long, aes(x = value)) +
+  geom_histogram() +
+  facet_wrap(variety ~ name, scales = 'free') +
+  theme_bw()
+
+```
+
+
 2) A scatter plot of with kernel area on the x-axis and asymmetry coefficient on the y-axis. Use color, shape, or any other aesthetic to  help you see potential groupings
+
+```{r}
+
+ggplot(seeds_df, aes(x = a, y = asym, color = variety)) +
+  geom_point() +
+  theme_bw()
+
+
+```
+
 
 3) A scatter plot with length of kernel groove on the x-axis and width of kernel on y-axis.
 
+```{r}
+
+ggplot(seeds_df, aes(x = l_g, y = w_k, color = variety)) +
+  geom_point() +
+  theme_bw()
+
+
+```
+
+
 You can always make more if you want. 
 
+```{r}
+
+ggplot(seeds_df, aes(x = c, y = l_k, color = variety)) +
+  geom_point() +
+  theme_bw()
 
 
-
-
-
-
+```
 
 
 ## Create a complete, scaled version of the data
 
 Make two separate dataframes where one is the complete cases dataframe and the other is the scaled complete cases. Check out the `scale()` function.
 
+```{r}
+
+seeds_complete <- seeds_df |> ## the dropped na df
+  drop_na()
+  
+
+seeds_scale <- seeds_complete |> ## the complete with scaled data
+  select(where(is.numeric)) |>
+  scale()
+
+
+
+```
+
+
+
 Why would we want two separate dataframes instead of doing it one pipe? Why should we scale the data before going to kmeans-clustering?
 
-
+We want the data scaled to get the euclidean distance on the same scale for all observations. We keep the other dataframe just in case we need it in the future!
 
 
 ## Identifying optimal number of clusters
@@ -146,9 +210,7 @@ number_est
 
 ```
 
-
-
-
+Decided 3 clusters!
 
 ## Run k-means 
 
@@ -157,12 +219,19 @@ The `nbclust` package runs k-means under the hood, but doesn't provide a usuable
 ```{r}
 
 set.seed(10101)
-seeds_km <- kmeans(xxx,yyy,zzz) # kmeans specifying 3 groups to start
-```
+seeds_km <- kmeans(seeds_scale,centers = 3, nstart = 25) # kmeans specifying 3 groups to start
+#nstart throws around the numbers 25 times
 
+```
 
 Examine the output of the kmeans object. Which column contains the classfiication? Join the cluster labels to the ***non***-scaled data.
 
+```{r}
+
+seeds_cl <- data.frame(seeds_complete, cluster_no = factor(seeds_km$cluster)) # that's why we kept seeds_complete!
+
+
+```
 
 
 Now make a ggplot of of area on the x-axis, asymmetric coefficient on the y-axis, color by the cluster numbers from kmeans, and use shape for the variety column.
@@ -171,14 +240,26 @@ Now make a ggplot of of area on the x-axis, asymmetric coefficient on the y-axis
 ### On your own:
 ### Plot area and asymmetric index, and include cluster number and variety for comparison:
 
-
-
+ggplot(seeds_cl, aes(x = a, y = asym, color = cluster_no, shape = variety)) +
+  geom_point() +
+  theme_bw()
 ```
 
 What do we see from this graph? 
 
 
 Can you make a table to show the comparison between the variety and defined clusters?
+
+```{r}
+
+#| tbl-cap: Contiency table for the grouping of kmeans and the variables of kernels
+
+seeds_cl |> 
+  select(variety, cluster_no) |>
+  table() |>
+  kableExtra::kable()
+
+```
 
 
 
@@ -205,7 +286,14 @@ wb_env <- read_csv(here::here("data","wb_env.csv"))
 
 Write pseducode for what we will need to do for heirarchal clustering
 
-
+1. Slice the top 20 emitters
+2. Drop NAs (note: we don't have any)
+3. Select only numerics
+4. Scale the data
+5. Get the distance (pairwise?) of the scaled data
+6. Run hclust
+7. Linkages either single or complete
+8. Make our dendograms
 
 
 ## Wrangle the data
@@ -215,6 +303,7 @@ Write pseducode for what we will need to do for heirarchal clustering
 
 # Only keep top 20 greenhouse gas emitters (for simplifying visualization here...)
 wb_ghg_20 <- wb_env %>% 
+  slice_max(ghg, n = 20)
   
 
 ```
@@ -224,9 +313,10 @@ wb_ghg_20 <- wb_env %>%
 ```{r}
 # Scale the numeric variables (columns 3:7)
 wb_scaled <- wb_ghg_20 %>% 
+  select(where(is.numeric)) |>
+  scale()
 
-
-rownames(wb_scaled) <- wb_ghg_20$name
+rownames(wb_scaled) <- wb_ghg_20$name # cool feature
 
 ```
 
@@ -236,6 +326,8 @@ rownames(wb_scaled) <- wb_ghg_20$name
 Use the `stats::dist()` function to find the Euclidean distance in multivariate space between the different observations (countries):
 
 ```{r}
+
+euc_distance <- dist(wb_scaled, method = 'euclidean')
 
 ```
 
@@ -258,6 +350,8 @@ p_complete<-ggdendrogram(hc_complete,
   theme_minimal() +
   labs(x = "Country")
 
+p_complete
+
 ```
 
 ## Now let's do it by single linkage & compare
@@ -268,6 +362,18 @@ Let's update the linkage to single linkage (recall from lecture: this means that
 
 # Make single cluster here and plot it
 
+# Hierarchical clustering (complete linkage)
+hc_single <- hclust(euc_distance, method = "single" )
+
+# Plot it
+p_single <-ggdendrogram(hc_single, 
+             rotate = TRUE) +
+  theme_minimal() +
+  labs(x = "Country")
+
+p_single
+
+
 ```
 
 
@@ -276,9 +382,12 @@ Use patchwork to compare the two outputs and add a descriptive figure caption to
 
 ```{r}
 
+
+plot_hclust <- p_complete + p_single
+
+plot_hclust
+
 ```
-
-
 
 
 
